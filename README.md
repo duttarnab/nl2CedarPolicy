@@ -13,6 +13,8 @@ Natural language
 → Verifier LLM
 → Result
 
+![](./assets/architecture.png)
+
 ## Requirements
 
 - Node.js 22+
