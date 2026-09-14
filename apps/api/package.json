@@ -1,0 +1,28 @@
+{
+  "name": "@nl2CedarPolicy/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "mcp:stdio": "tsx src/mcp-stdio.ts"
+  },
+  "dependencies": {
+    "@cedar-policy/cedar-wasm": "4.12.0",
+    "@fastify/cors": "^11.0.0",
+    "fastify": "^5.5.0",
+    "openai": "^5.12.0",
+    "zod": "^4.1.5",
+    "@anthropic-ai/sdk": "0.124.0",
+    "dotenv": "^17.2.1",
+    "@modelcontextprotocol/server": "^2.0.0",
+    "@modelcontextprotocol/fastify": "^2.0.0",
+    "@modelcontextprotocol/node": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  }
+}

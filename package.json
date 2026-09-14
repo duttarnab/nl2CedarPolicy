@@ -1,0 +1,13 @@
+{
+  "name": "nl2CedarPolicy",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"pnpm --filter @nl2CedarPolicy/api dev\" \"pnpm --filter @nl2CedarPolicy/web dev\"",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "packageManager": "pnpm@10.15.0"
+}

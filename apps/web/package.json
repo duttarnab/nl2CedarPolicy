@@ -1,0 +1,26 @@
+{
+  "name": "@nl2CedarPolicy/web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
+    "monaco-editor": "^0.52.2",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "@modelcontextprotocol/client": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.2",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.3",
+    "vite-plugin-wasm": "^3.5.0",
+    "vite-plugin-top-level-await": "^1.5.0"
+  }
+}
