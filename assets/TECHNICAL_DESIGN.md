@@ -225,7 +225,8 @@ sequenceDiagram
     P->>V: verifierPrompt(schema, requirement, policy)
     V-->>P: JSON verdict (zod-parsed)
   else Cedar validation failed
-    Note over P: diagnostics are synthesised into a<br/>schema_mismatch verdict; verifier is skipped
+    Note over P: diagnostics are synthesised into a schema_mismatch verdict
+    Note over P: verifier is skipped
   end
 
   loop while invalid and attempt ≤ REPAIR_MAX_ATTEMPTS
