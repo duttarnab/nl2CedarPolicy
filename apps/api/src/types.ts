@@ -1,9 +1,27 @@
 export type LlmProviderName = "openai" | "anthropic" | "mock";
 
+export type LlmRole = "generator" | "verifier" | "repair";
+
+export interface LlmRoleOverride {
+  provider?: LlmProviderName;
+  model?: string;
+}
+
+export interface LlmRoleSelection {
+  provider: LlmProviderName;
+  model: string;
+}
+
+export type LlmRoleSelections = Record<LlmRole, LlmRoleSelection>;
+
 export interface GeneratePolicyRequest {
   schema: string;
   requirement: string;
+  /** Applies to every role unless a role-specific override is given. */
   provider?: LlmProviderName;
+  generator?: LlmRoleOverride;
+  verifier?: LlmRoleOverride;
+  repair?: LlmRoleOverride;
 }
 
 export interface CedarDiagnostic {
@@ -40,7 +58,9 @@ export interface GeneratePolicyResponse {
   policy: string;
   validation: CedarValidationResult;
   verification: VerificationResult;
+  /** Kept for compatibility; equals the generator provider. */
   provider: LlmProviderName;
+  llms: LlmRoleSelections;
   repair: {
     enabled: boolean;
     attempts: number;

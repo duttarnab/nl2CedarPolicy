@@ -2,7 +2,7 @@ import { CedarService } from "../cedar/CedarService.js";
 import { PolicyGenerator } from "../llm/PolicyGenerator.js";
 import { PolicyRepairer } from "../llm/PolicyRepairer.js";
 import { PolicyVerifier } from "../llm/PolicyVerifier.js";
-import type { GeneratePolicyResponse, RepairAttempt, VerificationResult, LlmProviderName } from "../types.js";
+import type { GeneratePolicyResponse, RepairAttempt, VerificationResult, LlmRoleSelections } from "../types.js";
 
 export class PolicyPipeline {
   constructor(
@@ -10,7 +10,7 @@ export class PolicyPipeline {
     private generator: PolicyGenerator,
     private verifier: PolicyVerifier,
     private repairer: PolicyRepairer,
-    private provider: LlmProviderName,
+    private llms: LlmRoleSelections,
     private maxRepairAttempts = Number(process.env.REPAIR_MAX_ATTEMPTS || 2)
   ) {}
 
@@ -44,7 +44,8 @@ export class PolicyPipeline {
       policy,
       validation,
       verification,
-      provider: this.provider,
+      provider: this.llms.generator.provider,
+      llms: this.llms,
       repair: {
         enabled: this.maxRepairAttempts > 0,
         attempts: history.length,

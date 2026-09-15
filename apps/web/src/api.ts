@@ -10,16 +10,35 @@ export interface ProviderInfo {
   configured: boolean;
 }
 
+export type LlmRole = "generator" | "verifier" | "repair";
+
+export const LLM_ROLES: LlmRole[] = ["generator", "verifier", "repair"];
+
+export const ROLE_LABELS: Record<LlmRole, string> = {
+  generator: "Generator LLM",
+  verifier: "Verifier LLM",
+  repair: "Repair LLM"
+};
+
+export interface RoleSelection {
+  provider: ProviderId;
+  model: string;
+}
+
+export type RoleSelections = Record<LlmRole, RoleSelection>;
+
 export interface HealthData {
   status: string;
   defaultProvider: ProviderId;
   providers: ProviderInfo[];
+  roles: RoleSelections;
   cedarVersion: string;
 }
 
 export interface ResponseData {
   policy: string;
   provider: ProviderId;
+  llms: RoleSelections;
   validation: {
     valid: boolean;
     diagnostics: { severity: string; message: string }[];
@@ -72,12 +91,18 @@ export async function getHealth(): Promise<HealthData> {
 export async function generatePolicy(
   schema: string,
   requirement: string,
-  provider: ProviderId
+  roles: RoleSelections
 ): Promise<ResponseData> {
   return withMcpClient(async client => {
     const result = await client.callTool({
       name: "generate_cedar_policy",
-      arguments: { schema, requirement, provider }
+      arguments: {
+        schema,
+        requirement,
+        generator: roles.generator,
+        verifier: roles.verifier,
+        repair: roles.repair
+      }
     });
     return extractStructured<ResponseData>(result);
   });

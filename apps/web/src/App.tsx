@@ -1,6 +1,17 @@
 import Editor from "@monaco-editor/react";
 import { useEffect, useState } from "react";
-import { generatePolicy, getHealth, type HealthData, type ProviderId, type ResponseData } from "./api";
+import {
+  generatePolicy,
+  getHealth,
+  LLM_ROLES,
+  ROLE_LABELS,
+  type HealthData,
+  type LlmRole,
+  type ProviderId,
+  type ResponseData,
+  type RoleSelection,
+  type RoleSelections
+} from "./api";
 
 const DEFAULT_SCHEMA = `namespace App {
 
@@ -24,6 +35,12 @@ const DEFAULT_SCHEMA = `namespace App {
         resource: Document
     };
 }`;
+
+const DEFAULT_ROLES: RoleSelections = {
+  generator: { provider: "mock", model: "local-demo" },
+  verifier: { provider: "mock", model: "local-demo" },
+  repair: { provider: "mock", model: "local-demo" }
+};
 
 const DEFAULT_REQUIREMENT =
   "Users can read documents belonging to their own department. Developers can also write documents in their department.";
@@ -58,13 +75,13 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [health, setHealth] = useState<HealthData | null>(null);
-  const [provider, setProvider] = useState<ProviderId>("mock");
+  const [roles, setRoles] = useState<RoleSelections>(DEFAULT_ROLES);
 
   useEffect(() => {
     getHealth()
       .then(data => {
         setHealth(data);
-        setProvider(data.defaultProvider);
+        if (data.roles) setRoles(data.roles);
       })
       .catch(e => setError(e instanceof Error ? e.message : String(e)));
   }, []);
@@ -73,7 +90,7 @@ function App() {
     setLoading(true);
     setError("");
     try {
-      const data = await generatePolicy(schema, requirement, provider);
+      const data = await generatePolicy(schema, requirement, roles);
       setPolicy(data.policy);
       setResult(data);
     } catch (e) {
@@ -93,7 +110,11 @@ function App() {
               Natural language → Cedar policy → deterministic validation → semantic review
             </p>
           </div>
-          <ProviderStatus health={health} provider={provider} onChange={setProvider} />
+          <LlmSettings
+            health={health}
+            roles={roles}
+            onChange={(role, selection) => setRoles(prev => ({ ...prev, [role]: selection }))}
+          />
         </div>
       </header>
 
@@ -147,9 +168,11 @@ function App() {
           gridTemplateColumns: "1fr 1fr", gap: 16
         }}>
           <StatusCard
-            title={`LLM Provider · ${result.provider}`}
+            title="LLMs Used"
             ok={true}
-            body={health?.providers.find(p => p.id === result.provider)?.model ?? result.provider}
+            body={LLM_ROLES.map(role =>
+              `${ROLE_LABELS[role]}: ${result.llms[role].provider} · ${result.llms[role].model}`
+            ).join("\n")}
           />
 
           <StatusCard
@@ -163,13 +186,13 @@ function App() {
           />
 
           <StatusCard
-            title={`Semantic Verification · ${result.provider}`}
+            title={`Semantic Verification · ${result.llms.verifier.provider}`}
             ok={result.verification.valid}
             body={`${result.verification.summary}\n\nConfidence: ${(result.verification.confidence * 100).toFixed(0)}%`}
           />
 
           <StatusCard
-            title="Repair LLM"
+            title={`Repair LLM · ${result.llms.repair.provider}`}
             ok={result.verification.valid}
             body={result.repair.attempts === 0
               ? `No repair was needed. Repair loop is ${result.repair.enabled ? "enabled" : "disabled"}.`
@@ -217,44 +240,61 @@ function App() {
   );
 }
 
-function ProviderStatus(props: {
+function LlmSettings(props: {
   health: HealthData | null;
-  provider: ProviderId;
-  onChange: (provider: ProviderId) => void;
+  roles: RoleSelections;
+  onChange: (role: LlmRole, selection: RoleSelection) => void;
 }) {
-  const selected = props.health?.providers.find(p => p.id === props.provider);
+  const providers = props.health?.providers ?? [
+    { id: "mock" as const, label: "Mock", model: "local-demo", configured: true }
+  ];
 
   return (
     <div style={{
-      minWidth: 300, padding: 14, background: "#f9fafb",
+      minWidth: 380, padding: 14, background: "#f9fafb",
       border: "1px solid #e5e7eb", borderRadius: 10
     }}>
-      <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 6 }}>LLM Provider</div>
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <select
-          value={props.provider}
-          onChange={e => props.onChange(e.target.value as ProviderId)}
-          style={{ flex: 1, padding: "8px 10px", borderRadius: 7, border: "1px solid #d1d5db" }}
-        >
-          {(props.health?.providers ?? [
-            { id: "mock" as const, label: "Mock", model: "local-demo", configured: true }
-          ]).map(item => (
-            <option key={item.id} value={item.id} disabled={!item.configured}>
-              {item.label}{item.configured ? "" : " (not configured)"}
-            </option>
-          ))}
-        </select>
-        <span style={{
-          fontSize: 11, padding: "4px 7px", borderRadius: 999,
-          background: selected?.configured ? "#dcfce7" : "#fee2e2",
-          color: selected?.configured ? "#166534" : "#991b1b"
-        }}>
-          {selected?.configured ? "Ready" : "Not configured"}
-        </span>
+      <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 8 }}>
+        LLM per pipeline stage
       </div>
-      <div style={{ fontSize: 12, color: "#6b7280", marginTop: 7 }}>
-        Model: {selected?.model ?? "local-demo"}
-      </div>
+      {LLM_ROLES.map(role => {
+        const selection = props.roles[role];
+        const info = providers.find(p => p.id === selection.provider);
+
+        return (
+          <div key={role} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 7 }}>
+            <span style={{ fontSize: 12, width: 92, color: "#374151" }}>{ROLE_LABELS[role]}</span>
+            <select
+              value={selection.provider}
+              onChange={e => {
+                const provider = e.target.value as ProviderId;
+                const model = providers.find(p => p.id === provider)?.model ?? "";
+                props.onChange(role, { provider, model });
+              }}
+              style={{ padding: "6px 8px", borderRadius: 7, border: "1px solid #d1d5db" }}
+            >
+              {providers.map(item => (
+                <option key={item.id} value={item.id} disabled={!item.configured}>
+                  {item.label}{item.configured ? "" : " (not configured)"}
+                </option>
+              ))}
+            </select>
+            <input
+              value={selection.model}
+              onChange={e => props.onChange(role, { ...selection, model: e.target.value })}
+              placeholder="model"
+              style={{ flex: 1, minWidth: 0, padding: "6px 8px", borderRadius: 7, border: "1px solid #d1d5db", fontSize: 12 }}
+            />
+            <span style={{
+              fontSize: 11, padding: "4px 7px", borderRadius: 999,
+              background: info?.configured ? "#dcfce7" : "#fee2e2",
+              color: info?.configured ? "#166534" : "#991b1b"
+            }}>
+              {info?.configured ? "Ready" : "No key"}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }

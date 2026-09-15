@@ -5,9 +5,9 @@ export class AnthropicProvider implements LlmProvider {
   private readonly client: Anthropic;
   private readonly model: string;
 
-  constructor(apiKey: string, model = process.env.ANTHROPIC_MODEL || "claude-sonnet-5") {
+  constructor(apiKey: string, model?: string) {
     this.client = new Anthropic({ apiKey });
-    this.model = model;
+    this.model = model || process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
   }
 
   async complete(input: { system: string; user: string }): Promise<string> {

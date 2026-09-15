@@ -58,7 +58,35 @@ ANTHROPIC_API_KEY=
 ANTHROPIC_MODEL=claude-sonnet-5
 ```
 
-`LLM_PROVIDER` controls the default provider. The UI also lets you select any configured provider for each generation request.
+`LLM_PROVIDER` is the fallback provider. The UI also lets you select a provider and model for each generation request.
+
+### Per-stage LLM configuration
+
+The generator, verifier, and repair stages are configured independently, so you
+can generate with one model and verify with another (a different vendor makes
+the verifier a genuine second opinion rather than the generator re-reading its
+own work):
+
+```text
+LLM_GENERATOR_PROVIDER=anthropic
+LLM_GENERATOR_MODEL=claude-sonnet-5
+
+LLM_VERIFIER_PROVIDER=openai
+LLM_VERIFIER_MODEL=gpt-5.6-luna
+
+LLM_REPAIR_PROVIDER=anthropic
+LLM_REPAIR_MODEL=claude-sonnet-5
+```
+
+Resolution order for each stage, most specific first:
+
+1. the per-stage override in the request (the UI sends one per stage)
+2. `LLM_<STAGE>_PROVIDER` / `LLM_<STAGE>_MODEL`
+3. `LLM_PROVIDER` and `OPENAI_MODEL` / `ANTHROPIC_MODEL`
+
+`LLM_REPAIR_*` inherits `LLM_GENERATOR_*` when unset, since repair is a
+generation task. Omitting all stage variables reproduces the previous
+single-provider behavior.
 
 If neither real API key is configured, the application defaults to Mock.
 
@@ -70,10 +98,10 @@ The UI calls the MCP `get_status` tool and displays:
 
 - available providers
 - whether each provider is configured
-- the configured model
-- the default provider
+- the resolved provider and model for each stage (generator / verifier / repair)
+- the fallback provider
 
-The selected provider is sent with each `/api/policies/generate` request, so changing the provider in the UI does not require restarting the application.
+The per-stage selection is sent with each generation request, so changing a provider or model in the UI does not require restarting the application.
 
 ## Health check
 
@@ -89,11 +117,12 @@ curl http://localhost:3001/health
 {
   "schema": "namespace App { ... }",
   "requirement": "Developers can write documents in their department.",
-  "provider": "anthropic"
+  "generator": { "provider": "anthropic", "model": "claude-sonnet-5" },
+  "verifier": { "provider": "openai", "model": "gpt-5.6-luna" }
 }
 ```
 
-`provider` can be `openai`, `anthropic`, or `mock`. If omitted, the configured `LLM_PROVIDER` or the first configured real provider is used.
+`provider` can be `openai`, `anthropic`, or `mock`, and applies to every stage that has no `generator`/`verifier`/`repair` override. If omitted, the configured `LLM_PROVIDER` or the first configured real provider is used.
 
 ## Architecture
 
@@ -117,7 +146,7 @@ This is an MVP. The semantic verifier is an additional safety layer, not a secur
 
 The pipeline includes an iterative repair loop. When the semantic verifier rejects a policy, the selected LLM is called as a Repair LLM with the schema, original requirement, current policy, verifier findings, and Cedar diagnostics. The repaired policy is validated deterministically with Cedar before being verified again.
 
-Set `REPAIR_MAX_ATTEMPTS` to control the maximum number of repair iterations. `0` disables repair. The UI displays repair status and repair history. The same provider selected for generation and verification is used for repair, keeping provider behavior consistent.
+Set `REPAIR_MAX_ATTEMPTS` to control the maximum number of repair iterations. `0` disables repair. The UI displays repair status and repair history. The repair stage has its own provider/model setting and defaults to the generator's, keeping provider behavior consistent unless you deliberately split them.
 
 This follows a generate → validate → verify → repair → validate → verify self-correction pattern. Claude's documentation also describes separate-call self-correction as a useful pattern for complex prompts. citeturn0search0
 
